@@ -1,14 +1,34 @@
+import json
+import os
+from pathlib import Path
+
+import joblib
 import mlflow
 import mlflow.sklearn
 import pandas as pd
 import yaml
-import json
-import joblib
-import os
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    precision_recall_fscore_support,
+)
 
 EVAL_THRESHOLD = 0.70
+
+
+def _build_model(params: dict):
+    model_type = params.get("model_type", "random_forest")
+    model_params = {key: value for key, value in params.items() if key != "model_type"}
+    if model_type == "random_forest":
+        return RandomForestClassifier(**model_params, random_state=42)
+    if model_type == "gradient_boosting":
+        return GradientBoostingClassifier(**model_params, random_state=42)
+    if model_type == "logistic_regression":
+        return LogisticRegression(**model_params, random_state=42, max_iter=1000)
+    raise ValueError(f"Unsupported model_type: {model_type}")
 
 
 def train(
@@ -16,69 +36,73 @@ def train(
     data_path: str = "data/train_phase1.csv",
     eval_path: str = "data/eval.csv",
 ) -> float:
-    """
-    Huan luyen mo hinh va ghi nhan ket qua vao MLflow.
+    """Train, evaluate, track, and persist the selected classification model."""
+    df_train = pd.read_csv(data_path)
+    df_eval = pd.read_csv(eval_path)
+    if "target" not in df_train or "target" not in df_eval:
+        raise ValueError("Both datasets must contain a target column")
 
-    Tham so:
-        params     : dict chua cac sieu tham so cho RandomForestClassifier.
-        data_path  : duong dan den file du lieu huan luyen.
-        eval_path  : duong dan den file du lieu danh gia.
-
-    Tra ve:
-        accuracy (float): do chinh xac tren tap danh gia.
-    """
-
-    # TODO 1: Doc du lieu huan luyen va danh gia
-    # df_train = ...
-    # df_eval  = ...
-
-    # TODO 2: Tach dac trung (X) va nhan (y)
-    # X_train = df_train.drop(columns=["target"])
-    # y_train = ...
-    # X_eval  = ...
-    # y_eval  = ...
+    X_train = df_train.drop(columns=["target"])
+    y_train = df_train["target"]
+    X_eval = df_eval.drop(columns=["target"])
+    y_eval = df_eval["target"]
+    model_type = params.get("model_type", "random_forest")
+    model = _build_model(params)
 
     with mlflow.start_run():
+        mlflow.log_params({**params, "model_type": model_type})
+        model.fit(X_train, y_train)
+        predictions = model.predict(X_eval)
+        accuracy = float(accuracy_score(y_eval, predictions))
+        f1 = float(f1_score(y_eval, predictions, average="weighted"))
+        mlflow.log_metric("accuracy", accuracy)
+        mlflow.log_metric("f1_score", f1)
+        mlflow.log_metric("train_samples", len(df_train))
+        mlflow.log_metric("eval_samples", len(df_eval))
+        mlflow.sklearn.log_model(model, "model")
 
-        # TODO 3: Ghi nhan cac sieu tham so
-        # mlflow.log_params(...)
+        labels = [0, 1, 2]
+        matrix = confusion_matrix(y_eval, predictions, labels=labels).tolist()
+        precision, recall, _, support = precision_recall_fscore_support(
+            y_eval, predictions, labels=labels, zero_division=0
+        )
+        label_distribution = {
+            str(label): float((y_train == label).mean()) for label in labels
+        }
+        for label, ratio in label_distribution.items():
+            if ratio < 0.10:
+                print(f"WARNING: class {label} represents only {ratio:.2%} of training data")
 
-        # TODO 4: Khoi tao va huan luyen RandomForestClassifier
-        # Goi y: su dung random_state=42 de dam bao tinh tai tao
-        # model = RandomForestClassifier(...)
-        # model.fit(...)
+        metrics = {
+            "accuracy": accuracy,
+            "f1_score": f1,
+            "model_type": model_type,
+            "train_samples": len(df_train),
+            "eval_samples": len(df_eval),
+            "label_distribution": label_distribution,
+            "confusion_matrix": matrix,
+            "precision": {str(label): float(value) for label, value in zip(labels, precision)},
+            "recall": {str(label): float(value) for label, value in zip(labels, recall)},
+            "support": {str(label): int(value) for label, value in zip(labels, support)},
+        }
+        Path("outputs").mkdir(exist_ok=True)
+        Path("models").mkdir(exist_ok=True)
+        with open("outputs/metrics.json", "w", encoding="utf-8") as handle:
+            json.dump(metrics, handle, indent=2)
+        with open("outputs/report.txt", "w", encoding="utf-8") as handle:
+            handle.write("Confusion matrix (labels 0, 1, 2):\n")
+            handle.write(json.dumps(matrix) + "\n\n")
+            handle.write("class,precision,recall,support\n")
+            for index, label in enumerate(labels):
+                handle.write(
+                    f"{label},{precision[index]:.6f},{recall[index]:.6f},{support[index]}\n"
+                )
+        joblib.dump(model, "models/model.pkl")
+        print(f"Accuracy: {accuracy:.4f} | F1: {f1:.4f}")
 
-        # TODO 5: Du doan tren tap danh gia va tinh chi so
-        # preds = ...
-        # acc   = accuracy_score(...)
-        # f1    = f1_score(..., average="weighted")
-
-        # TODO 6: Ghi nhan chi so vao MLflow
-        # mlflow.log_metric("accuracy", ...)
-        # mlflow.log_metric("f1_score", ...)
-        # mlflow.sklearn.log_model(model, "model")
-
-        # TODO 7: In ket qua ra man hinh
-        # print(f"Accuracy: {acc:.4f} | F1: {f1:.4f}")
-
-        # TODO 8: Luu metrics ra file outputs/metrics.json
-        # File nay duoc doc boi GitHub Actions o Buoc 2
-        # os.makedirs("outputs", exist_ok=True)
-        # with open("outputs/metrics.json", "w") as f:
-        #     json.dump({"accuracy": acc, "f1_score": f1}, f)
-
-        # TODO 9: Luu mo hinh ra file models/model.pkl
-        # File nay duoc upload len GCS o Buoc 2
-        # os.makedirs("models", exist_ok=True)
-        # joblib.dump(model, "models/model.pkl")
-
-        pass  # xoa dong nay sau khi hoan thanh tat ca TODO ben tren
-
-    # TODO 10: Tra ve acc
-    # return acc
+    return accuracy
 
 
 if __name__ == "__main__":
-    with open("params.yaml") as f:
-        params = yaml.safe_load(f)
-    train(params)
+    with open("params.yaml", encoding="utf-8") as handle:
+        train(yaml.safe_load(handle))

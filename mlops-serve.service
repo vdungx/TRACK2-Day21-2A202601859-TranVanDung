@@ -1,0 +1,15 @@
+[Unit]
+Description=MLOps Model Inference Server
+After=network.target
+
+[Service]
+User=dungs
+WorkingDirectory=/home/dungs
+Environment="GCS_BUCKET=day21-track2-2a202601859-tranvandung"
+Environment="GOOGLE_APPLICATION_CREDENTIALS=/home/dungs/sa-key.json"
+ExecStart=/usr/bin/python3 /home/dungs/src/serve.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
