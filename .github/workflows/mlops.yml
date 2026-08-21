@@ -38,8 +38,8 @@ jobs:
         run: pip install -r requirements.txt
       - name: Authenticate to Cloud Storage
         run: |
-          printf '%s' '${{ secrets.CLOUD_CREDENTIALS }}' > /tmp/sa-key.json
-          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json" >> "$GITHUB_ENV"
+          printf '%s' '${{ secrets.CLOUD_CREDENTIALS }}' > $GITHUB_WORKSPACE/sa-key.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/sa-key.json" >> "$GITHUB_ENV"
       - name: Pull data with DVC
         run: dvc pull data/train_phase1.csv.dvc data/eval.csv.dvc
       - name: Download currently deployed metrics
