@@ -32,4 +32,4 @@ File cài Google Cloud SDK ban đầu bị tiến trình khác khóa nên đã c
 - DVC push thành công; bucket có dữ liệu DVC và các file `models/latest/model.pkl`, `models/latest/metrics.json`.
 - Workflow thành công: [MLOps Pipeline #32446529045](https://github.com/vdungx/TRACK2-Day21-2A202601859-TranVanDung/actions/runs/32446529045).
 - API triển khai: `http://34.60.75.138:8000`.
-- Workflow đã cấu hình trigger `push` trên nhánh `main`. Tuy nhiên, GitHub chưa hiển thị một run riêng có event `push` cho các commit dữ liệu; run thành công hiện có được kích hoạt bằng `workflow_dispatch`. Báo cáo ghi rõ trạng thái này để tránh khẳng định sai bằng chứng.
+- Workflow đã cấu hình trigger `push` trên nhánh `main`. Commit dữ liệu `ec50912` đã tự động kích hoạt run [MLOps Pipeline #32449193315](https://github.com/vdungx/TRACK2-Day21-2A202601859-TranVanDung/actions/runs/32449193315); cả Unit Test, Train, Eval và Deploy đều hoàn thành thành công.
