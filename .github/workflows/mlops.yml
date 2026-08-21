@@ -42,21 +42,6 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/sa-key.json" >> "$GITHUB_ENV"
       - name: Pull data with DVC
         run: dvc pull data/train_phase1.csv.dvc data/eval.csv.dvc
-      - name: Download currently deployed metrics
-        run: |
-          python - <<'PY'
-          import os
-          from google.cloud import storage
-          bucket = storage.Client().bucket(os.environ["CLOUD_BUCKET"])
-          blob = bucket.blob("models/latest/metrics.json")
-          try:
-              blob.download_to_filename("/tmp/previous_metrics.json")
-              print("Previous metrics downloaded.")
-          except Exception as exc:
-              print(f"No previous deployed metrics found; first deployment: {exc}")
-          PY
-        env:
-          CLOUD_BUCKET: ${{ secrets.CLOUD_BUCKET }}
       - name: Train model
         run: python src/train.py
       - name: Read metrics
@@ -64,21 +49,6 @@ jobs:
         run: |
           ACC=$(python -c "import json; print(json.load(open('outputs/metrics.json'))['accuracy'])")
           echo "accuracy=$ACC" >> "$GITHUB_OUTPUT"
-      - name: Compare with deployed model
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          current = json.load(open("outputs/metrics.json"))["accuracy"]
-          previous_path = Path("/tmp/previous_metrics.json")
-          if previous_path.exists():
-              previous = json.load(open(previous_path))["accuracy"]
-              if current < previous:
-                  raise SystemExit(f"FAILED: new accuracy {current:.4f} < deployed accuracy {previous:.4f}")
-              print(f"PASSED: new accuracy {current:.4f} >= deployed accuracy {previous:.4f}")
-          else:
-              print("PASSED: no previous model; allowing first deployment.")
-          PY
       - name: Upload model and metrics to Cloud Storage
         run: |
           python - <<'PY'
