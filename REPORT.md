@@ -1,26 +1,26 @@
-# Day 21 MLOps Lab Report
+# Báo cáo Lab Day 21 – MLOps Pipeline
 
-## Experiment result
+## Kết quả thực nghiệm
 
-MLflow contains 7 recorded runs. Every run records both `accuracy` and `f1_score`. The selected configuration is `random_forest`, `n_estimators=500`, `max_depth=null`, `min_samples_split=2`, and `random_state=42`. The best run, trained with 5,996 samples, achieved accuracy `0.746` and F1-score `0.745111`, above the evaluation threshold `0.70`.
+MLflow hiện có 7 lần chạy. Mỗi lần chạy đều ghi nhận đầy đủ `accuracy` và `f1_score`. Bộ siêu tham số được chọn là `random_forest`, `n_estimators=500`, `max_depth=null`, `min_samples_split=2`, `random_state=42`. Lần chạy tốt nhất trên 5.996 mẫu đạt accuracy `0.746` và F1-score `0.745111`, vượt ngưỡng đánh giá `0.70`.
 
-## Pipeline and deployment
+## Pipeline và triển khai
 
-- DVC tracks `train_phase1`, `train_phase2`, and `eval`; the remote is Google Cloud Storage.
-- GitHub Actions runs Unit Test, Train, Eval, and Deploy in sequence.
-- The Eval gate stops deployment when accuracy is below `0.70`.
-- The pipeline compares the new accuracy with the deployed model before uploading the new model.
-- FastAPI serves the model on the GCE VM at `/health` and `/predict`.
-- Verified responses were `{"status":"ok"}` and `{"prediction":0,"label":"thap"}`.
+- DVC quản lý các tập dữ liệu `train_phase1`, `train_phase2` và `eval`; remote lưu trên Google Cloud Storage.
+- GitHub Actions chạy theo thứ tự Unit Test → Train → Eval → Deploy.
+- Eval gate chặn triển khai nếu accuracy thấp hơn `0.70`.
+- Pipeline so sánh accuracy của model mới với model đang triển khai trước khi upload model mới.
+- FastAPI phục vụ model trên VM GCE qua hai endpoint `/health` và `/predict`.
+- Kết quả kiểm tra thực tế: `{"status":"ok"}` và `{"prediction":0,"label":"thap"}`.
 
-## Difficulties and solutions
+## Khó khăn và cách xử lý
 
-The Google Cloud SDK installer was locked by another process, so the SDK was installed through winget. DVC authentication in GitHub Actions initially failed because the credential path did not match the generated key location. The workflow now writes the service-account key to `$GITHUB_WORKSPACE/sa-key.json`, matching `.dvc/config`. The VM uses systemd to keep the FastAPI service running.
+File cài Google Cloud SDK ban đầu bị tiến trình khác khóa nên đã chuyển sang cài bằng winget. GitHub Actions từng lỗi xác thực DVC vì đường dẫn credential không khớp vị trí service-account key. Workflow hiện ghi key vào `$GITHUB_WORKSPACE/sa-key.json`, đúng với cấu hình trong `.dvc/config`. VM sử dụng systemd để duy trì dịch vụ FastAPI.
 
-## Evidence
+## Bằng chứng
 
-- MLflow UI: 7 runs with tracked parameters and metrics.
-- DVC push completed successfully; the bucket contains the DVC objects and `models/latest/model.pkl` plus `metrics.json`.
-- Successful workflow: [MLOps Pipeline #32446529045](https://github.com/vdungx/TRACK2-Day21-2A202601859-TranVanDung/actions/runs/32446529045).
-- API endpoint: `http://34.60.75.138:8000`.
-- The workflow is configured for `push` events on `main`. The successful run available for submission was started with `workflow_dispatch`; GitHub did not expose a separate `push` run for the data commits, so this is reported honestly rather than presented as an automatic push run.
+- MLflow UI hiển thị 7 lần chạy với các siêu tham số và chỉ số đánh giá.
+- DVC push thành công; bucket có dữ liệu DVC và các file `models/latest/model.pkl`, `models/latest/metrics.json`.
+- Workflow thành công: [MLOps Pipeline #32446529045](https://github.com/vdungx/TRACK2-Day21-2A202601859-TranVanDung/actions/runs/32446529045).
+- API triển khai: `http://34.60.75.138:8000`.
+- Workflow đã cấu hình trigger `push` trên nhánh `main`. Tuy nhiên, GitHub chưa hiển thị một run riêng có event `push` cho các commit dữ liệu; run thành công hiện có được kích hoạt bằng `workflow_dispatch`. Báo cáo ghi rõ trạng thái này để tránh khẳng định sai bằng chứng.
