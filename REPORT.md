@@ -4,6 +4,15 @@
 
 MLflow hiện có 7 lần chạy. Mỗi lần chạy đều ghi nhận đầy đủ `accuracy` và `f1_score`. Bộ siêu tham số được chọn là `random_forest`, `n_estimators=500`, `max_depth=null`, `min_samples_split=2`, `random_state=42`. Lần chạy tốt nhất trên 5.996 mẫu đạt accuracy `0.746` và F1-score `0.745111`, vượt ngưỡng đánh giá `0.70`.
 
+So sánh trước và sau khi bổ sung dữ liệu:
+
+| Chỉ số | Bước 2 – 2.998 mẫu | Bước 3 – 5.996 mẫu |
+|---|---:|---:|
+| Accuracy | 0.676 | 0.746 |
+| F1-score | 0.674809 | 0.745111 |
+
+Kết quả cho thấy việc bổ sung dữ liệu giúp tăng accuracy khoảng 0.070 và F1-score khoảng 0.070302.
+
 ## Pipeline và triển khai
 
 - DVC quản lý các tập dữ liệu `train_phase1`, `train_phase2` và `eval`; remote lưu trên Google Cloud Storage.
